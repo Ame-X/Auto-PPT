@@ -135,14 +135,51 @@ from now has a real answer. Corrupting it defeats the entire Harness.
 - Canvas is **fixed at 1920×1080 px**. Think in absolute pixels for
   type size and spacing — `text-[96px]`, `p-32`, etc. work as expected.
 - Prefer composing the primitives in `src/lib/slide-kit.tsx`:
-  `SlideFrame`, `Title`, `Body`, `Bullet`, `TwoColumn`. They exist so
-  you don't repeat boilerplate, not as a closed set.
+  `SlideFrame`, `Title`, `Body`, `Bullet`, `TwoColumn`, `Asset`. They
+  exist so you don't repeat boilerplate, not as a closed set.
 - When the primitives are not enough, drop into raw tailwind directly.
   See `slides/a-two-column-example.tsx` for the mixed style — that's
   normal, not a smell.
 - Viewport scaling is handled by `App.tsx`'s `ScaledStage`. You do not
   need to think about responsive design inside slides — your canvas is
   always 1920×1080.
+
+### Images via `Asset` (placeholder pattern)
+
+When a slide needs an image you don't have yet, use `Asset`. It is
+deliberately designed so that *missing image* is a visible, routable
+state, not an invisible TODO.
+
+```tsx
+<Asset
+  src="/assets/file-tree.svg"
+  width={900}
+  height={650}
+  description="A file tree on the left showing slides/*.tsx and slides.config.ts; arrows from the config to a stack of rendered slide thumbnails on the right."
+/>
+```
+
+Behavior:
+
+- **`src` resolves to a real file** → renders as `<img>` at the given
+  dimensions.
+- **`src` empty, or the file 404s** → renders a dashed grey box at the
+  given dimensions, showing the size, the description, and the target
+  path. This is the placeholder state.
+
+The placeholder is the workflow signal. Write a *thorough*
+`description` — it functions as the spec for whoever (human or
+image-gen agent) lands the actual file at `src`. Once the file exists
+at that path, the placeholder disappears with no slide-file edit
+required.
+
+Conventions:
+
+- Images live under `public/assets/`. Reference them as `/assets/foo.svg`.
+- For "program-drawn" diagrams (file trees, arrow diagrams, simple
+  flow charts), prefer inline `<svg>` in the slide JSX — no asset
+  needed, no placeholder needed.
+- For photos, screenshots, logos, or anything raster, use `Asset`.
 
 ## Commands
 
