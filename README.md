@@ -10,8 +10,21 @@ pnpm install
 pnpm dev          # view slides at http://localhost:5173
 ```
 
-Hand the repo to a coding agent and tell it what you want. It will read
-`program.md` and use `pnpm ppt` to inspect and modify the deck.
+Hand the repo to a coding agent and tell it what you want.
+
+## For AI agents working in this repo
+
+**Read [`SKILL.md`](./SKILL.md) before doing anything.** It explains the
+slide contract, the editing loop, the `Annotated` rationale schema,
+the headless CLI, and what's safe vs. risky to modify. Any AI tool
+(Claude Code, Cursor, Codex, etc.) cloning or forking this repo
+should treat `SKILL.md` as the source of truth.
+
+If your change touches how the Harness itself works — new slide-kit
+primitive, modified slide contract, new/removed CLI command, changed
+canvas size, etc. — **re-read `SKILL.md` and update it in the same
+change**, so the next agent inherits the new convention instead of
+the old one.
 
 ## Anatomy
 
@@ -20,6 +33,6 @@ Hand the repo to a coding agent and tell it what you want. It will read
 - `src/lib/slide-kit.tsx` — `SlideFrame` plus a small set of layout
   primitives.
 - `scripts/ppt.ts` — headless CLI (`pnpm ppt text | list | new`).
-- `program.md` — instructions for the coding agent.
+- `SKILL.md` — instructions for the coding agent.
 
 Each slide is a fixed 1920×1080 canvas, scaled to fit the viewport.
