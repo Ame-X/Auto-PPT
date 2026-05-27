@@ -26,10 +26,10 @@ export const text = {
       '把论点延展开：不是"我们做了个工具"，而是"工具该长成什么样"；最后一句把决定权交还给观众，避免说教',
   },
   signoff: {
-    content: 'github.com/yourorg/auto-ppt',
-    summary: '尾页 URL 占位',
+    content: 'github.com/Ame-X/Auto-PPT',
+    summary: '尾页 URL：项目仓库地址',
     rationale:
-      '尾页通常该给一个去处；URL 写成占位形式，使用时改成真实地址。TODO: ask user — 仓库最终的公开 URL 是什么',
+      '尾页给一个去处，让看完 deck 的人能找到代码。指向 Ame-X 的官方仓库——项目正式的家',
   },
   selfNote: {
     content: 'This deck was made with Auto-PPT.',
