@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+@theme {
+  --color-accent: #b85c38;
+  --color-ink: #1a1614;
+  --color-mute: #6b6259;
+  --color-rule: #e5ddd2;
+  --font-display:
+    ui-serif, "Iowan Old Style", "Palatino", Georgia, Cambria,
+    "Times New Roman", Times, serif;
+}
+
 html,
 body,
 #root {

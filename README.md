@@ -7,7 +7,8 @@ A slide deck is a folder of React components. Make PPTs by editing
 
 ```sh
 pnpm install
-pnpm dev          # view slides at http://localhost:5173
+pnpm dev          # full deck at http://localhost:5173
+                  # one slide  at http://localhost:5173/?slide=<slug>
 ```
 
 Hand the repo to a coding agent and tell it what you want.
@@ -19,6 +20,12 @@ slide contract, the editing loop, the `Annotated` rationale schema,
 the headless CLI, and what's safe vs. risky to modify. Any AI tool
 (Claude Code, Cursor, Codex, etc.) cloning or forking this repo
 should treat `SKILL.md` as the source of truth.
+
+There are two feedback loops: `pnpm ppt text` for content edits, and
+the single-slide route `/?slide=<slug>` (viewed via whatever browser
+tool your agent has — Playwright MCP, built-in screenshot, etc.) for
+layout edits. The Harness intentionally does not ship a screenshot
+tool; use what your agent already provides.
 
 If your change touches how the Harness itself works — new slide-kit
 primitive, modified slide contract, new/removed CLI command, changed

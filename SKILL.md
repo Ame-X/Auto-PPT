@@ -11,9 +11,20 @@ under `slides/`, ordered and shown/hidden by `slides.config.ts`.
 Editing a slide is editing one file. The rendered deck is for the
 human; you (the AI) work through the headless CLI and the file tree.
 
-You will not reliably see the rendered output. Do not try to eyeball
-screenshots or parse the browser. Use `pnpm ppt text` — that is your
-ground truth.
+There are two distinct feedback loops, and using the wrong one for the
+job is the most common failure mode:
+
+- **Content loop** — `pnpm ppt text` is ground truth. For anything
+  about wording, ordering, bullets, or rationale, do not look at
+  screenshots. Reading the rendered image while editing copy invites
+  visual bias ("looks fine") and self-deception.
+- **Layout loop** — `pnpm ppt text` tells you nothing about whether
+  text overflows the canvas, whether two columns collide, or whether a
+  font size reads at the back of the room. For layout, font size, and
+  spacing decisions, you need to *see* the slide. See
+  [Looking at slides](#looking-at-slides) below.
+
+Pick the loop that matches the job. Don't cross the streams.
 
 ## The loop
 
@@ -27,9 +38,42 @@ For each user request:
 3. **Edit.** Use Write/Edit on `slides/*.tsx` and `slides.config.ts`.
    For new slides, `pnpm ppt new <kebab-title>` scaffolds the file but
    does **not** add it to the deck — that is a separate explicit edit.
-4. **Verify.** `pnpm ppt text` again. Confirm the diff matches the
-   request.
+4. **Verify.** `pnpm ppt text` again for content changes. For layout
+   changes, also open the slide in a browser (see
+   [Looking at slides](#looking-at-slides)).
 5. **Report.** One sentence summary of what changed. Stop.
+
+## Looking at slides
+
+The dev server exposes a clean single-slide route designed for
+headless capture and visual inspection:
+
+```
+http://localhost:5173/?slide=<slug>
+```
+
+This renders one slide at native 1920×1080 with no chrome, no
+scaling, on a white background. The element has `data-shot-ready="true"`
+once mounted, which a browser-driving tool can wait on.
+
+If you have a browser tool available — Playwright MCP, a built-in
+browser/screenshot capability, a `chrome-devtools` MCP, whatever your
+host provides — point it at that URL to inspect a slide. The Harness
+deliberately does not bundle a screenshot tool: it stays
+tool-agnostic, and your agent already has one.
+
+When to actually look:
+
+- You changed font sizes, padding, columns, or any visual primitive.
+- You added a slide and need to confirm content fits the canvas.
+- The user reports a visual problem ("title is cut off", "too dense").
+
+When **not** to look:
+
+- You only changed `content` strings. The text loop is sufficient and
+  the screenshot will tempt you to silently re-edit copy based on what
+  looks pretty.
+- You are reordering or hiding slides. `pnpm ppt list` is enough.
 
 ## Slide file contract
 
@@ -91,14 +135,51 @@ from now has a real answer. Corrupting it defeats the entire Harness.
 - Canvas is **fixed at 1920×1080 px**. Think in absolute pixels for
   type size and spacing — `text-[96px]`, `p-32`, etc. work as expected.
 - Prefer composing the primitives in `src/lib/slide-kit.tsx`:
-  `SlideFrame`, `Title`, `Body`, `Bullet`, `TwoColumn`. They exist so
-  you don't repeat boilerplate, not as a closed set.
+  `SlideFrame`, `Title`, `Body`, `Bullet`, `TwoColumn`, `Asset`. They
+  exist so you don't repeat boilerplate, not as a closed set.
 - When the primitives are not enough, drop into raw tailwind directly.
   See `slides/a-two-column-example.tsx` for the mixed style — that's
   normal, not a smell.
 - Viewport scaling is handled by `App.tsx`'s `ScaledStage`. You do not
   need to think about responsive design inside slides — your canvas is
   always 1920×1080.
+
+### Images via `Asset` (placeholder pattern)
+
+When a slide needs an image you don't have yet, use `Asset`. It is
+deliberately designed so that *missing image* is a visible, routable
+state, not an invisible TODO.
+
+```tsx
+<Asset
+  src="/assets/file-tree.svg"
+  width={900}
+  height={650}
+  description="A file tree on the left showing slides/*.tsx and slides.config.ts; arrows from the config to a stack of rendered slide thumbnails on the right."
+/>
+```
+
+Behavior:
+
+- **`src` resolves to a real file** → renders as `<img>` at the given
+  dimensions.
+- **`src` empty, or the file 404s** → renders a dashed grey box at the
+  given dimensions, showing the size, the description, and the target
+  path. This is the placeholder state.
+
+The placeholder is the workflow signal. Write a *thorough*
+`description` — it functions as the spec for whoever (human or
+image-gen agent) lands the actual file at `src`. Once the file exists
+at that path, the placeholder disappears with no slide-file edit
+required.
+
+Conventions:
+
+- Images live under `public/assets/`. Reference them as `/assets/foo.svg`.
+- For "program-drawn" diagrams (file trees, arrow diagrams, simple
+  flow charts), prefer inline `<svg>` in the slide JSX — no asset
+  needed, no placeholder needed.
+- For photos, screenshots, logos, or anything raster, use `Asset`.
 
 ## Commands
 
@@ -107,7 +188,7 @@ from now has a real answer. Corrupting it defeats the entire Harness.
 | `pnpm ppt text` | Dump every slide in deck order with `content` / `summary` / `rationale`. **Main read-state command.** |
 | `pnpm ppt list` | Show deck order + hidden slides (slugs only, no bodies). |
 | `pnpm ppt new <kebab-title>` | Scaffold a new slide file from template. Does **not** add to deck. |
-| `pnpm dev` | Start Vite dev server (for the human to view). |
+| `pnpm dev` | Start Vite dev server. The full deck is at `/`; a single slide at `/?slide=<slug>` for headless capture. |
 | `pnpm build` | Production build. |
 
 ## Scaffold vs. slide content
@@ -156,8 +237,9 @@ When asking, give the user concrete choices, not open-ended questions.
 If you make a non-trivial change to how this Harness works — adding a
 slide-kit primitive, changing the slide-file contract, adding or
 removing a CLI command, changing the deck-config format, altering the
-canvas size, introducing a new scaffold convention — **re-read this
-file and update it in the same change**. The next agent's entire
+canvas size, changing the single-slide route, introducing a new
+scaffold convention — **re-read this file and update it in the same
+change**. The next agent's entire
 understanding of the project comes from this file; if you let it
 drift, every future agent inherits the staleness.
 
