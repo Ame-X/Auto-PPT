@@ -50,7 +50,36 @@ function ScaledStage({ children }: { children: ReactNode }) {
   );
 }
 
+function SingleSlide({ slug }: { slug: string }) {
+  const mod = bySlug.get(slug);
+  if (!mod) {
+    return (
+      <div
+        data-shot-error="missing"
+        className="w-[1920px] h-[1080px] flex items-center justify-center bg-red-950 text-red-200 font-mono text-4xl"
+      >
+        Missing slide file: slides/{slug}.tsx
+      </div>
+    );
+  }
+  const SlideComponent = mod.default;
+  return (
+    <div
+      data-shot-ready="true"
+      className="w-[1920px] h-[1080px] overflow-hidden bg-white"
+    >
+      <SlideComponent />
+    </div>
+  );
+}
+
 export default function App() {
+  const params = new URLSearchParams(window.location.search);
+  const singleSlug = params.get('slide');
+  if (singleSlug) {
+    return <SingleSlide slug={singleSlug} />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-900 py-12 px-12">
       <div className="max-w-6xl mx-auto flex flex-col gap-12">
