@@ -66,11 +66,13 @@ The dev server exposes a clean single-slide route designed for
 headless capture and visual inspection:
 
 ```
-http://localhost:5173/{ppt}/{slug}
+http://localhost:5273/{ppt}/{slug}
 ```
 
-This renders one slide at native 1920×1080 with no chrome, no
-scaling, on a white background. The element has `data-shot-ready="true"`
+The dev server defaults to port **5273** and walks up (5274, 5275, …)
+if that port is busy, so don't hardcode it — read the actual URL that
+`pnpm dev` prints. This renders one slide at native 1920×1080 with no
+chrome, no scaling, on a white background. The element has `data-shot-ready="true"`
 once mounted, which a browser-driving tool can wait on. A missing ppt or
 slug renders a `data-shot-error="missing"` box instead.
 

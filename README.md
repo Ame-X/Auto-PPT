@@ -7,9 +7,11 @@ Make PPTs by editing `.tsx` files; let your coding agent do the writing.
 
 ```sh
 pnpm install
-pnpm dev          # landing page (all decks) at http://localhost:5173
-                  # one deck   at http://localhost:5173/{ppt}
-                  # one slide  at http://localhost:5173/{ppt}/{slug}
+pnpm dev          # landing page (all decks) at http://localhost:5273
+                  # one deck   at http://localhost:5273/{ppt}
+                  # one slide  at http://localhost:5273/{ppt}/{slug}
+                  # (port 5273 walks up to 5274, … if busy — see the
+                  #  URL pnpm dev prints)
 ```
 
 Hand the repo to a coding agent and tell it what you want.
