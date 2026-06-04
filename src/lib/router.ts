@@ -6,6 +6,8 @@
 //
 //   /                      -> landing  (list every hosted PPT)
 //   /{ppt}                 -> deck     (that PPT's full scrollable deck)
+//   /{ppt}?print           -> print    (every slide at native size, fires
+//                                       the browser print dialog → Save as PDF)
 //   /{ppt}/{slug}          -> slide    (one slide, native 1920×1080)
 //   /?slide={slug}         -> legacy   (old single-slide URL; resolved
 //                                       against the default/sole PPT)
@@ -14,6 +16,7 @@
 export type Route =
   | { kind: 'landing' }
   | { kind: 'deck'; ppt: string }
+  | { kind: 'print'; ppt: string }
   | { kind: 'slide'; ppt: string; slug: string }
   | { kind: 'slide-legacy'; slug: string }
   | { kind: 'notFound' };
@@ -27,7 +30,12 @@ export function parseRoute(
   if (segs.length === 0) {
     return legacy ? { kind: 'slide-legacy', slug: legacy } : { kind: 'landing' };
   }
-  if (segs.length === 1) return { kind: 'deck', ppt: segs[0] };
+  if (segs.length === 1) {
+    const wantsPrint = new URLSearchParams(search).has('print');
+    return wantsPrint
+      ? { kind: 'print', ppt: segs[0] }
+      : { kind: 'deck', ppt: segs[0] };
+  }
   if (segs.length === 2) return { kind: 'slide', ppt: segs[0], slug: segs[1] };
   return { kind: 'notFound' };
 }

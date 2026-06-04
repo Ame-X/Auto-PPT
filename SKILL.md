@@ -30,14 +30,30 @@ Pick the loop that matches the job. Don't cross the streams.
 ## Routes
 
 Routing is slug-based and hand-rolled (`src/lib/router.ts`, no router
-library). Three shapes plus a legacy shim:
+library). Four shapes plus a legacy shim:
 
 | URL | What renders |
 |---|---|
 | `/` | Landing page — a card per hosted PPT (skips empty decks). |
 | `/{ppt}` | That PPT's full deck, each slide scaled to fit. |
+| `/{ppt}?print` | Every slide at native size; opens the print dialog → Save as PDF. See [Exporting to PDF](#exporting-to-pdf). |
 | `/{ppt}/{slide}` | One slide, native 1920×1080, no chrome. **Headless-capture route.** |
 | `/?slide=<slug>` | Legacy shim — resolves against the sole PPT, else `openalice`. Will be removed once external screenshot tools are repointed to `/{ppt}/{slide}`. |
+
+## Exporting to PDF
+
+A deck is real DOM, so PDF export is just the browser's print dialog —
+no tooling, and the text stays vector (selectable, searchable,
+translatable). The **Export PDF** button on any deck links to
+`/{ppt}?print`, which renders the deck twice: a scaled on-screen preview
+(`print:hidden`) so the page reads as a normal deck, plus a hidden raw
+1920×1080 stack (`hidden print:block`) that only the printer sees. The
+print rules in `src/index.css` (`@page { size: 1920px 1080px }` +
+`.print-slide` page breaks + `print-color-adjust: exact`) map one slide
+to one page. If you touch this, keep the `.print-slide` class and the
+`@page` geometry in sync — that pairing is the export contract. The
+dialog auto-opens once on load (guarded against React StrictMode's
+double-invoke); Chrome gives the most faithful output.
 
 ## The loop
 

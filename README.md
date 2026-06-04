@@ -44,7 +44,7 @@ agent inherits the new convention instead of the old one.
   comment a line to hide) plus `meta` (title / description / cover for
   the landing card).
 - `src/lib/router.ts` — the slug-based route parser (`/`, `/{ppt}`,
-  `/{ppt}/{slug}`).
+  `/{ppt}?print`, `/{ppt}/{slug}`).
 - `src/lib/slide-kit.tsx` — `SlideFrame` plus a small set of layout
   primitives.
 - `src/lib/ppt.ts` — the `Annotated` and `DeckMeta` types.
@@ -54,3 +54,7 @@ agent inherits the new convention instead of the old one.
 
 The landing page at `/` lists every PPT with a visible deck. Each slide
 is a fixed 1920×1080 canvas, scaled to fit the viewport.
+
+Open any deck and hit **Export PDF** (or just Cmd/Ctrl+P) to save it. The
+deck is real DOM, so the export is the browser's own print — one slide per
+page, with selectable, searchable vector text. No tooling required.

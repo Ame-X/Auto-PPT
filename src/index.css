@@ -20,3 +20,43 @@ body,
 body {
   background: #0f172a;
 }
+
+/* ─── PDF export (the /{ppt}?print route) ────────────────────────────────
+   The deck is real DOM, so "export to PDF" is just the browser's print
+   dialog → Save as PDF: vector text, selectable, searchable. PrintDeck
+   shows a scaled preview on screen (print:hidden) and a raw 1920×1080 stack
+   to the printer (hidden print:block); these rules give that stack its
+   page geometry — one slide to one page. */
+@media print {
+  /* 1920×1080 px at 96dpi == 20in × 11.25in, a pixel-exact 16:9 page. */
+  @page {
+    size: 1920px 1080px;
+    margin: 0;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto;
+    background: #fff;
+  }
+
+  .print-slide {
+    break-after: page;
+    break-inside: avoid;
+  }
+
+  /* A trailing break would emit a blank final page in some engines. */
+  .print-slide:last-child {
+    break-after: auto;
+  }
+
+  /* Force backgrounds/fills to print. Without this, Chrome drops every
+     non-white color unless the user manually ticks "Background graphics",
+     and the exported deck comes out washed white. */
+  .print-slide,
+  .print-slide * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
