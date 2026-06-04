@@ -221,6 +221,15 @@ function Deck({ ppt }: { ppt: string }) {
   // here.
   return (
     <div className="min-h-screen bg-slate-900 py-12 px-12">
+      {/* Export affordance. A deck is a webpage, so "save as PDF" is just
+          the browser's print dialog — no tooling, vector text, selectable.
+          print:hidden keeps the button itself out of the exported PDF. */}
+      <a
+        href={`/${ppt}?print`}
+        className="fixed bottom-6 right-6 z-10 rounded-full bg-white/90 px-5 py-2.5 text-sm font-medium text-slate-900 shadow-lg ring-1 ring-black/5 backdrop-blur transition hover:bg-white print:hidden"
+      >
+        Export PDF
+      </a>
       <div className="max-w-6xl mx-auto flex flex-col gap-12">
         {entry.deck.map((slug) => {
           const mod = entry.bySlug.get(slug);
@@ -246,6 +255,140 @@ function Deck({ ppt }: { ppt: string }) {
   );
 }
 
+// The "/{ppt}?print" view: the export-to-PDF surface. The deck is real DOM,
+// so "save as PDF" is just the browser's print dialog — vector text, no tool.
+//
+// It renders the deck twice on purpose:
+//   • a scaled on-screen preview (print:hidden) so the page looks like a
+//     normal deck while the dialog is open or if the user cancels — NOT raw
+//     1920px slides spilling off the viewport;
+//   • a raw native-size stack (hidden print:block) that only the printer
+//     sees, where the index.css print rules map one slide to one 1920×1080
+//     page.
+//
+// On mount, once fonts + images have settled, we open the dialog exactly
+// once. The guard is split on purpose: the ref survives React StrictMode's
+// dev-only mount→unmount→remount (a per-effect `let` would reset and fire
+// twice), and the cleanup flag cancels the throwaway pass's pending promise.
+function PrintDeck({ ppt }: { ppt: string }) {
+  const entry = byPpt.get(ppt);
+  const printedRef = useRef(false);
+
+  useEffect(() => {
+    if (!entry) return;
+    let cancelled = false;
+    const fire = () => {
+      if (cancelled || printedRef.current) return;
+      printedRef.current = true;
+      window.print();
+    };
+    // Don't capture mid-load: the serif display face and any <img> assets
+    // must be ready or the PDF shows fallback fonts / blank images.
+    const fonts = document.fonts ? document.fonts.ready : Promise.resolve();
+    const images = Array.from(document.images).map((img) =>
+      img.complete
+        ? Promise.resolve()
+        : new Promise<void>((resolve) => {
+            img.addEventListener('load', () => resolve(), { once: true });
+            img.addEventListener('error', () => resolve(), { once: true });
+          }),
+    );
+    Promise.all([fonts, ...images]).then(() => {
+      if (cancelled) return;
+      // Two rAFs: let the freshly-loaded fonts/images paint before the
+      // synchronous print snapshot freezes the page.
+      requestAnimationFrame(() => requestAnimationFrame(fire));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [entry]);
+
+  if (!entry) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-slate-200 flex flex-col items-center justify-center gap-4 p-12">
+        <div className="font-mono text-2xl">Unknown PPT: {ppt}</div>
+        <a href="/" className="text-sky-400 hover:underline">
+          ← All decks
+        </a>
+      </div>
+    );
+  }
+
+  const slides = entry.deck.map((slug) => ({
+    slug,
+    mod: entry.bySlug.get(slug),
+  }));
+
+  return (
+    <>
+      {/* On-screen preview — scaled to fit, looks like a normal deck.
+          print:hidden keeps this whole branch out of the PDF. */}
+      <div className="print:hidden min-h-screen bg-slate-900 py-12 px-12">
+        <p className="max-w-6xl mx-auto text-sm text-slate-400">
+          Your browser's print dialog should open automatically — choose{' '}
+          <span className="font-medium text-slate-200">Save as PDF</span>.
+          Didn't open? Use the button, bottom-right.
+        </p>
+        <div className="max-w-6xl mx-auto mt-6 flex flex-col gap-12">
+          {slides.map(({ slug, mod }) => {
+            if (!mod) {
+              return (
+                <div
+                  key={slug}
+                  className="text-red-300 font-mono p-8 border border-red-400 rounded bg-red-950/30"
+                >
+                  Missing slide file: <code>slides/{ppt}/{slug}.tsx</code>
+                </div>
+              );
+            }
+            const SlideComponent = mod.default;
+            return (
+              <ScaledStage key={slug}>
+                <SlideComponent />
+              </ScaledStage>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="fixed bottom-6 right-6 z-10 rounded-full bg-white/90 px-5 py-2.5 text-sm font-medium text-slate-900 shadow-lg ring-1 ring-black/5 backdrop-blur transition hover:bg-white"
+        >
+          Save as PDF
+        </button>
+      </div>
+
+      {/* Print-only — raw native 1920×1080 slides, one per page. `hidden`
+          keeps them off-screen (so Ctrl-F / screen readers see only the
+          preview); print:block reveals them for the PDF. */}
+      <div className="hidden print:block" aria-hidden="true">
+        {slides.map(({ slug, mod }) => {
+          if (!mod) {
+            return (
+              <div
+                key={slug}
+                className="print-slide w-[1920px] h-[1080px] flex items-center justify-center bg-red-950 text-red-200 font-mono text-4xl"
+              >
+                Missing slide: slides/{ppt}/{slug}.tsx
+              </div>
+            );
+          }
+          const SlideComponent = mod.default;
+          return (
+            <div
+              key={slug}
+              className="print-slide w-[1920px] h-[1080px] overflow-hidden bg-white"
+            >
+              <SlideComponent />
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 function NotFound() {
   return (
     <div className="min-h-screen bg-slate-900 text-slate-200 flex flex-col items-center justify-center gap-4 p-12">
@@ -265,6 +408,8 @@ export default function App() {
       return <Landing />;
     case 'deck':
       return <Deck ppt={route.ppt} />;
+    case 'print':
+      return <PrintDeck ppt={route.ppt} />;
     case 'slide':
       return <SingleSlide ppt={route.ppt} slug={route.slug} />;
     case 'slide-legacy': {
