@@ -8,9 +8,6 @@ import {
 } from 'react';
 import type { Annotated, DeckMeta } from './lib/ppt';
 import { parseRoute } from './lib/router';
-import { toPng } from 'html-to-image';
-import PptxGenJS from 'pptxgenjs';
-
 type SlideModule = {
   default: ComponentType;
   text: Record<string, Annotated>;
@@ -214,6 +211,10 @@ function Deck({ ppt }: { ppt: string }) {
     if (!entry) return;
     setExporting(true);
     try {
+      const [{ toPng }, { default: PptxGenJS }] = await Promise.all([
+        import('html-to-image'),
+        import('pptxgenjs'),
+      ]);
       const pptx = new PptxGenJS();
       // PPTX 16:9 standard is 13.333" × 7.5". Use a layout that matches
       // our 1920×1080 aspect ratio so the full-pixel screenshot fills
