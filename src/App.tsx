@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -7,6 +8,8 @@ import {
 } from 'react';
 import type { Annotated, DeckMeta } from './lib/ppt';
 import { parseRoute } from './lib/router';
+import { toPng } from 'html-to-image';
+import PptxGenJS from 'pptxgenjs';
 
 type SlideModule = {
   default: ComponentType;
@@ -205,6 +208,49 @@ function Landing() {
 // The "/{ppt}" view: that PPT's full deck, each slide scaled to fit.
 function Deck({ ppt }: { ppt: string }) {
   const entry = byPpt.get(ppt);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = useCallback(async () => {
+    if (!entry) return;
+    setExporting(true);
+    try {
+      const pptx = new PptxGenJS();
+      // PPTX 16:9 standard is 13.333" × 7.5". Use a layout that matches
+      // our 1920×1080 aspect ratio so the full-pixel screenshot fills
+      // the slide with no distortion.
+      pptx.defineLayout({ name: 'CUSTOM', width: 13.333, height: 7.5 });
+
+      for (const slug of entry.deck) {
+        const el = document.querySelector(
+          `[data-slide="${ppt}/${slug}"]`,
+        ) as HTMLElement | null;
+        if (!el) continue;
+
+        // html-to-image uses SVG <foreignObject> — the browser itself
+        // rasterises with its own CSS engine.  oklch(), CSS variables,
+        // Tailwind v4, etc. all work natively.  No style rewriting needed.
+        const dataUrl = await toPng(el, {
+          width: 1920,
+          height: 1080,
+          pixelRatio: 1,
+        });
+
+        const slide = pptx.addSlide();
+        slide.addImage({
+          data: dataUrl,
+          x: 0,
+          y: 0,
+          w: 13.333,
+          h: 7.5,
+        });
+      }
+
+      await pptx.writeFile({ fileName: `${ppt}.pptx` });
+    } finally {
+      setExporting(false);
+    }
+  }, [entry, ppt]);
+
   if (!entry) {
     return (
       <div className="min-h-screen bg-slate-900 text-slate-200 flex flex-col items-center justify-center gap-4 p-12">
@@ -216,40 +262,60 @@ function Deck({ ppt }: { ppt: string }) {
     );
   }
 
-  // No chrome: a shared /{ppt} is a pure deck. The landing page at "/" is
-  // the owner's private dashboard and is reached directly, not linked from
-  // here.
   return (
     <div className="min-h-screen bg-slate-900 py-12 px-12">
-      {/* Export affordance. A deck is a webpage, so "save as PDF" is just
-          the browser's print dialog — no tooling, vector text, selectable.
-          print:hidden keeps the button itself out of the exported PDF. */}
-      <a
-        href={`/${ppt}?print`}
-        className="fixed bottom-6 right-6 z-10 rounded-full bg-white/90 px-5 py-2.5 text-sm font-medium text-slate-900 shadow-lg ring-1 ring-black/5 backdrop-blur transition hover:bg-white print:hidden"
-      >
-        Export PDF
-      </a>
-      <div className="max-w-6xl mx-auto flex flex-col gap-12">
-        {entry.deck.map((slug) => {
-          const mod = entry.bySlug.get(slug);
-          if (!mod) {
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-center justify-between mb-10">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-100 tracking-tight">
+              {entry.meta.title || ppt}
+            </h1>
+            <p className="text-slate-400 mt-1 font-mono text-sm">
+              {entry.deck.length} {entry.deck.length === 1 ? 'slide' : 'slides'}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-12">
+          {entry.deck.map((slug) => {
+            const mod = entry.bySlug.get(slug);
+            if (!mod) {
+              return (
+                <div
+                  key={slug}
+                  className="text-red-300 font-mono p-8 border border-red-400 rounded bg-red-950/30"
+                >
+                  Missing slide file: <code>slides/{ppt}/{slug}.tsx</code>
+                </div>
+              );
+            }
+            const SlideComponent = mod.default;
             return (
-              <div
-                key={slug}
-                className="text-red-300 font-mono p-8 border border-red-400 rounded bg-red-950/30"
-              >
-                Missing slide file: <code>slides/{ppt}/{slug}.tsx</code>
-              </div>
+              <ScaledStage key={slug}>
+                <div data-slide={`${ppt}/${slug}`}>
+                  <SlideComponent />
+                </div>
+              </ScaledStage>
             );
-          }
-          const SlideComponent = mod.default;
-          return (
-            <ScaledStage key={slug}>
-              <SlideComponent />
-            </ScaledStage>
-          );
-        })}
+          })}
+        </div>
+      </div>
+
+      {/* Export affordances — unified bottom-right floating pill group.
+          print:hidden keeps the buttons themselves out of the exported PDF. */}
+      <div className="fixed bottom-6 right-6 z-10 flex gap-3 print:hidden">
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          className="rounded-full bg-white/90 px-5 py-2.5 text-sm font-medium text-slate-900 shadow-lg ring-1 ring-black/5 backdrop-blur transition hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {exporting ? 'Exporting...' : 'Export PPTX'}
+        </button>
+        <a
+          href={`/${ppt}?print`}
+          className="rounded-full bg-white/90 px-5 py-2.5 text-sm font-medium text-slate-900 shadow-lg ring-1 ring-black/5 backdrop-blur transition hover:bg-white"
+        >
+          Export PDF
+        </a>
       </div>
     </div>
   );
