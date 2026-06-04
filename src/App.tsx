@@ -218,7 +218,8 @@ function Deck({ ppt }: { ppt: string }) {
       // PPTX 16:9 standard is 13.333" × 7.5". Use a layout that matches
       // our 1920×1080 aspect ratio so the full-pixel screenshot fills
       // the slide with no distortion.
-      pptx.defineLayout({ name: 'CUSTOM', width: 13.333, height: 7.5 });
+			pptx.defineLayout({ name: 'CUSTOM', width: 13.333, height: 7.5 });
+			pptx.layout = 'CUSTOM';
 
       for (const slug of entry.deck) {
         const el = document.querySelector(
@@ -235,7 +236,7 @@ function Deck({ ppt }: { ppt: string }) {
           pixelRatio: 1,
         });
 
-        const slide = pptx.addSlide();
+				const slide = pptx.addSlide();
         slide.addImage({
           data: dataUrl,
           x: 0,
