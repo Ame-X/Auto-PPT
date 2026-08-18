@@ -150,10 +150,141 @@ function CoverThumb({ ppt }: { ppt: string }) {
   );
 }
 
+function toDeckKebab(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function CommandRow({
+  label,
+  cmd,
+  copied,
+  onCopy,
+}: {
+  label: string;
+  cmd: string;
+  copied: boolean;
+  onCopy: () => void;
+}) {
+  return (
+    <div className="mb-2 flex items-center gap-2">
+      <code className="flex-1 truncate rounded-lg bg-slate-900 px-3 py-2 font-mono text-sm text-slate-200 ring-1 ring-white/5">
+        {cmd}
+      </code>
+      <button
+        type="button"
+        onClick={onCopy}
+        className="shrink-0 rounded-lg bg-slate-700 px-3 py-2 text-xs font-medium text-slate-100 hover:bg-slate-600"
+        aria-label={`Copy ${label} command`}
+      >
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+    </div>
+  );
+}
+
+// Honest start path: this SPA cannot write files. The panel copies the
+// scaffold commands and states the landing visibility rule.
+function NewDeckPanel({ onClose }: { onClose: () => void }) {
+  const [name, setName] = useState('');
+  const [copied, setCopied] = useState<'pnpm' | 'bun' | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const slug = toDeckKebab(name);
+  const token = slug || '<name>';
+  const pnpmCmd = `pnpm ppt new-deck ${token}`;
+  const bunCmd = `bun run ppt new-deck ${token}`;
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  async function copy(cmd: string, which: 'pnpm' | 'bun') {
+    try {
+      await navigator.clipboard.writeText(cmd);
+      setCopied(which);
+      window.setTimeout(() => {
+        setCopied((cur) => (cur === which ? null : cur));
+      }, 1600);
+    } catch {
+      setCopied(null);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-20 flex items-center justify-center bg-black/60 p-6"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="new-deck-title"
+        className="w-full max-w-lg rounded-xl bg-slate-800 p-6 shadow-2xl ring-1 ring-white/10"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <h2 id="new-deck-title" className="text-xl font-semibold">
+            New deck
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-sm text-slate-400 hover:text-slate-100"
+          >
+            Close
+          </button>
+        </div>
+        <p className="mb-4 text-sm text-slate-400 leading-relaxed">
+          This app cannot write files. From the repo root, run one of the
+          commands below. A new deck will not appear on / until{' '}
+          <code className="font-mono text-slate-300">
+            {'slides/{ppt}/deck.config.ts'}
+          </code>{' '}
+          <code className="font-mono text-slate-300">deck</code> array has a
+          visible slug.
+        </p>
+        <label className="mb-3 block text-sm text-slate-400">
+          Name
+          <input
+            ref={inputRef}
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="my-deck"
+            spellCheck={false}
+            className="mt-1 w-full rounded-lg bg-slate-900 px-3 py-2 font-mono text-sm text-slate-100 outline-none ring-1 ring-white/10 placeholder:text-slate-600 focus:ring-white/25"
+          />
+        </label>
+        <CommandRow
+          label="pnpm"
+          cmd={pnpmCmd}
+          copied={copied === 'pnpm'}
+          onCopy={() => copy(pnpmCmd, 'pnpm')}
+        />
+        <CommandRow
+          label="bun"
+          cmd={bunCmd}
+          copied={copied === 'bun'}
+          onCopy={() => copy(bunCmd, 'bun')}
+        />
+      </div>
+    </div>
+  );
+}
+
 // The "/" view: a card per hosted PPT. Decks with an empty `deck` array
 // (everything commented out) are skipped — a card linking to an empty
-// deck reads as broken.
+// deck reads as broken. "New deck" is a CLI helper, not a file writer.
 function Landing() {
+  const [newDeckOpen, setNewDeckOpen] = useState(false);
   const ppts = [...byPpt.entries()]
     .filter(([, entry]) => entry.deck.length > 0)
     .sort((a, b) => a[0].localeCompare(b[0]));
@@ -165,37 +296,54 @@ function Landing() {
         <p className="text-slate-400 mb-10">
           {ppts.length} {ppts.length === 1 ? 'deck' : 'decks'} hosted here.
         </p>
-        {ppts.length === 0 ? (
-          <p className="text-slate-500 font-mono">
+        {ppts.length === 0 && (
+          <p className="mb-8 text-sm leading-relaxed text-slate-500 font-mono">
             No decks with visible slides. Add one with{' '}
-            <code>pnpm ppt new-deck &lt;name&gt;</code>.
+            <code>pnpm ppt new-deck &lt;name&gt;</code> or{' '}
+            <code>bun run ppt new-deck &lt;name&gt;</code>. A new deck will
+            not appear on / until{' '}
+            <code>{'slides/{ppt}/deck.config.ts'}</code> <code>deck</code>{' '}
+            array has a visible slug.
           </p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {ppts.map(([ppt, entry]) => (
-              <a
-                key={ppt}
-                href={`/${ppt}`}
-                className="group flex flex-col gap-4 rounded-xl bg-slate-800 p-5 ring-1 ring-white/5 transition hover:ring-white/20 hover:bg-slate-800/80"
-              >
-                <CoverThumb ppt={ppt} />
-                <div>
-                  <div className="text-xl font-semibold group-hover:text-white">
-                    {entry.meta.title || ppt}
-                  </div>
-                  {entry.meta.description && (
-                    <div className="mt-1 text-sm text-slate-400 leading-snug">
-                      {entry.meta.description}
-                    </div>
-                  )}
-                  <div className="mt-2 font-mono text-xs text-slate-500">
-                    /{ppt} · {entry.deck.length}{' '}
-                    {entry.deck.length === 1 ? 'slide' : 'slides'}
-                  </div>
+        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          {ppts.map(([ppt, entry]) => (
+            <a
+              key={ppt}
+              href={`/${ppt}`}
+              className="group flex flex-col gap-4 rounded-xl bg-slate-800 p-5 ring-1 ring-white/5 transition hover:ring-white/20 hover:bg-slate-800/80"
+            >
+              <CoverThumb ppt={ppt} />
+              <div>
+                <div className="text-xl font-semibold group-hover:text-white">
+                  {entry.meta.title || ppt}
                 </div>
-              </a>
-            ))}
-          </div>
+                {entry.meta.description && (
+                  <div className="mt-1 text-sm text-slate-400 leading-snug">
+                    {entry.meta.description}
+                  </div>
+                )}
+                <div className="mt-2 font-mono text-xs text-slate-500">
+                  /{ppt} · {entry.deck.length}{' '}
+                  {entry.deck.length === 1 ? 'slide' : 'slides'}
+                </div>
+              </div>
+            </a>
+          ))}
+          <button
+            type="button"
+            onClick={() => setNewDeckOpen(true)}
+            className="group flex min-h-[14rem] flex-col items-center justify-center gap-2 rounded-xl bg-slate-800/40 p-5 text-slate-400 ring-1 ring-dashed ring-white/15 transition hover:bg-slate-800/80 hover:text-slate-200 hover:ring-white/30"
+          >
+            <span className="text-3xl font-light leading-none">+</span>
+            <span className="text-xl font-semibold">New deck</span>
+            <span className="text-sm text-slate-500">
+              Copy the scaffold command
+            </span>
+          </button>
+        </div>
+        {newDeckOpen && (
+          <NewDeckPanel onClose={() => setNewDeckOpen(false)} />
         )}
       </div>
     </div>
