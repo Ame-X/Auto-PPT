@@ -65,6 +65,17 @@ for (const [filePath, mod] of Object.entries(slideModules)) {
 // Used to resolve the legacy `?slide=` shim when more than one PPT exists.
 const DEFAULT_PPT = 'openalice';
 
+// Authoring is localhost (or loopback). A published /{ppt} stays
+// deck-only so unpublished .tsx files do not leak onto a shared URL.
+function isAuthoringOrigin(): boolean {
+  const { hostname } = window.location;
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '[::1]'
+  );
+}
+
 function ScaledStage({ children }: { children: ReactNode }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(0);
@@ -216,9 +227,15 @@ function Deck({ ppt }: { ppt: string }) {
     );
   }
 
-  // No chrome: a shared /{ppt} is a pure deck. The landing page at "/" is
-  // the owner's private dashboard and is reached directly, not linked from
-  // here.
+  // No chrome on a shared /{ppt}: the landing page at "/" is the owner's
+  // private dashboard and is reached directly, not linked from here.
+  // Localhost lists slugs that exist as .tsx but are not in `deck` so a
+  // `ppt new` file is not gone from the authoring view. print:hidden keeps
+  // that list (and the export button) out of a Ctrl/Cmd-P from this page.
+  const unpublished = [...entry.bySlug.keys()]
+    .filter((slug) => !entry.deck.includes(slug))
+    .sort();
+
   return (
     <div className="min-h-screen bg-slate-900 py-12 px-12">
       {/* Export affordance. A deck is a webpage, so "save as PDF" is just
@@ -250,6 +267,26 @@ function Deck({ ppt }: { ppt: string }) {
             </ScaledStage>
           );
         })}
+        {isAuthoringOrigin() && unpublished.length > 0 && (
+          <aside className="print:hidden rounded-lg border border-white/10 bg-slate-800/70 p-6 text-slate-300">
+            <div className="mb-3 text-sm font-medium text-slate-100">
+              Hidden slides (file exists, not in deck)
+            </div>
+            <ul className="flex flex-col gap-4 font-mono text-sm">
+              {unpublished.map((slug) => (
+                <li key={slug}>
+                  <div>
+                    slides/{ppt}/{slug}.tsx
+                  </div>
+                  <div className="mt-1 text-slate-400">
+                    Add the slug to the <code>deck</code> array in{' '}
+                    <code>deck.config.ts</code>.
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </aside>
+        )}
       </div>
     </div>
   );
