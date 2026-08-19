@@ -37,7 +37,7 @@ library). Four shapes plus a legacy shim:
 | `/` | Landing page — a card per hosted PPT (skips empty decks). |
 | `/{ppt}` | That PPT's full deck, each slide scaled to fit. |
 | `/{ppt}?print` | Every slide at native size; opens the print dialog → Save as PDF. See [Exporting to PDF](#exporting-to-pdf). |
-| `/{ppt}/{slide}` | One slide, native 1920×1080, no chrome. **Headless-capture route.** |
+| `/{ppt}/{slide}` | One slide. Inner canvas stays 1920×1080 with `data-shot-ready` for capture; the page scales that canvas to fit the window (letterbox OK). No Export PDF chrome. **Headless-capture route.** |
 | `/?slide=<slug>` | Legacy shim — resolves against the sole PPT, else `openalice`. Will be removed once external screenshot tools are repointed to `/{ppt}/{slide}`. |
 
 ## Exporting to PDF
@@ -87,10 +87,16 @@ http://localhost:5273/{ppt}/{slug}
 
 The dev server defaults to port **5273** and walks up (5274, 5275, …)
 if that port is busy, so don't hardcode it — read the actual URL that
-`pnpm dev` prints. This renders one slide at native 1920×1080 with no
-chrome, no scaling, on a white background. The element has `data-shot-ready="true"`
-once mounted, which a browser-driving tool can wait on. A missing ppt or
-slug renders a `data-shot-error="missing"` box instead.
+`pnpm dev` prints. The capture node is a native 1920×1080 white canvas
+with `data-shot-ready="true"` once mounted — screenshot tools that wait
+on that selector and use a 1920×1080 viewport still get a 1920×1080
+box. Do not change that node's size or strip the attribute. On a
+smaller (laptop) window the same node is scaled to fit
+(`min(vw/1920, vh/1080)`, letterbox OK) so the full slide is visible.
+No Export PDF chrome on this route.
+
+A missing ppt or slug renders a `data-shot-error="missing"` box (also
+fitted to the window) with a small `← All decks` link back to `/`.
 
 If you have a browser tool available — Playwright MCP, a built-in
 browser/screenshot capability, a `chrome-devtools` MCP, whatever your
@@ -213,9 +219,10 @@ from now has a real answer. Corrupting it defeats the entire Harness.
 - When the primitives are not enough, drop into raw tailwind directly.
   See `slides/samples/a-two-column-example.tsx` for the mixed style —
   that's normal, not a smell.
-- Viewport scaling is handled by `App.tsx`'s `ScaledStage`. You do not
-  need to think about responsive design inside slides — your canvas is
-  always 1920×1080.
+- Viewport scaling is handled in `App.tsx`: `ScaledStage` (width-fit)
+  on deck cards, `FitStage` (contain-fit the window) on `/{ppt}/{slug}`.
+  You do not need to think about responsive design inside slides — your
+  canvas is always 1920×1080.
 
 ### Images via `Asset` (placeholder pattern)
 

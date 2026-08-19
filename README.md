@@ -10,6 +10,7 @@ pnpm install
 pnpm dev          # landing page (all decks) at http://localhost:5273
                   # one deck   at http://localhost:5273/{ppt}
                   # one slide  at http://localhost:5273/{ppt}/{slug}
+                  #             (1920×1080 canvas, scaled to fit the window)
                   # (port 5273 walks up to 5274, … if busy — see the
                   #  URL pnpm dev prints)
 ```

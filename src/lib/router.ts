@@ -8,7 +8,8 @@
 //   /{ppt}                 -> deck     (that PPT's full scrollable deck)
 //   /{ppt}?print           -> print    (every slide at native size, fires
 //                                       the browser print dialog → Save as PDF)
-//   /{ppt}/{slug}          -> slide    (one slide, native 1920×1080)
+//   /{ppt}/{slug}          -> slide    (one slide; 1920×1080 capture node,
+//                                       scaled to fit the window)
 //   /?slide={slug}         -> legacy   (old single-slide URL; resolved
 //                                       against the default/sole PPT)
 //   anything else          -> notFound
