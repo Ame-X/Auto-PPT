@@ -331,7 +331,7 @@ function cmdNew(ppt: string | undefined, slug: string | undefined): void {
   fs.writeFileSync(file, slideTemplate(slug));
   console.log(`Created slides/${ppt}/${slug}.tsx`);
   console.log(
-    `(Not added to deck. Edit slides/${ppt}/deck.config.ts to include "${slug}".)`,
+    `(Not added to the deck on purpose — add "${slug}" to the deck array in slides/${ppt}/deck.config.ts.)`,
   );
 }
 

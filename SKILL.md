@@ -69,7 +69,9 @@ For each user request:
 3. **Edit.** Use Write/Edit on `slides/{ppt}/*.tsx` and
    `slides/{ppt}/deck.config.ts`. For a new slide,
    `pnpm ppt new <ppt> <kebab-title>` scaffolds the file but does **not**
-   add it to the deck — that is a separate explicit edit. For a whole
+   add it to the deck — **intentional safety** so a scaffold never
+   silently mutates deck order. Follow up by adding the new slug string
+   to the `deck` array in `slides/{ppt}/deck.config.ts`. For a whole
    new PPT, `pnpm ppt new-deck <ppt> [Title]`.
 4. **Verify.** `pnpm ppt text [ppt]` again for content changes. For
    layout changes, also open the slide in a browser (see
@@ -87,10 +89,13 @@ http://localhost:5273/{ppt}/{slug}
 
 The dev server defaults to port **5273** and walks up (5274, 5275, …)
 if that port is busy, so don't hardcode it — read the actual URL that
-`pnpm dev` prints. This renders one slide at native 1920×1080 with no
-chrome, no scaling, on a white background. The element has `data-shot-ready="true"`
-once mounted, which a browser-driving tool can wait on. A missing ppt or
-slug renders a `data-shot-error="missing"` box instead.
+`pnpm dev` prints. Prefer `http://localhost:5273/...` over
+`http://127.0.0.1:5273/...` — Vite may bind only IPv6 `::1`, so
+requests to `127.0.0.1` can fail. This renders one slide at native
+1920×1080 with no chrome, no scaling, on a white background. The
+element has `data-shot-ready="true"` once mounted, which a
+browser-driving tool can wait on. A missing ppt or slug renders a
+`data-shot-error="missing"` box instead.
 
 If you have a browser tool available — Playwright MCP, a built-in
 browser/screenshot capability, a `chrome-devtools` MCP, whatever your
@@ -260,11 +265,15 @@ Conventions:
 |---|---|
 | `pnpm ppt text [ppt]` | Dump slides with `content` / `summary` / `rationale`. No arg = every PPT grouped; with a `ppt` = just that one. **Main read-state command.** |
 | `pnpm ppt list [ppt]` | Show deck order + hidden slides (slugs only). No arg = every PPT; with a `ppt` = just that one. |
-| `pnpm ppt new <ppt> <kebab-title>` | Scaffold a new slide file in `slides/{ppt}/`. The PPT must already exist (have a `deck.config.ts`). Does **not** add to the deck. |
+| `pnpm ppt new <ppt> <kebab-title>` | Scaffold a new slide file in `slides/{ppt}/`. The PPT must already exist (have a `deck.config.ts`). Does **not** add to the deck — intentional; then add the slug to the `deck` array in `slides/{ppt}/deck.config.ts`. |
 | `pnpm ppt new-deck <ppt> [Title]` | Scaffold a whole new PPT: a folder with `deck.config.ts` + a starter `cover.tsx`. Renders immediately at `/{ppt}`. |
 | `pnpm dev` | Start Vite dev server. Landing at `/`; a deck at `/{ppt}`; a single slide at `/{ppt}/{slug}` for headless capture. |
 | `pnpm build` | Production build (`tsc -b && vite build`). |
 | `pnpm preview` | Serve the production build locally (verifies SPA fallback for deep links). |
+
+If `pnpm` is unavailable, `bun install`, `bun run <script>`, and
+`bun run ppt …` are fine equivalents. `pnpm` remains the documented
+default.
 
 ## Hosting
 
