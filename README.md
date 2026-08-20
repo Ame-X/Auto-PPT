@@ -60,7 +60,9 @@ agent inherits the new convention instead of the old one.
 - `vercel.json` — SPA fallback so deep links resolve on static hosts.
 - `SKILL.md` — instructions for the coding agent.
 
-The landing page at `/` lists every PPT with a visible deck. Each slide
+The landing page at `/` lists every PPT with a visible deck. Use **New
+deck** there to copy the `pnpm` / `bun` scaffold commands — a new folder
+won't appear until its `deck` array has a visible slug. Each slide
 is a fixed 1920×1080 canvas, scaled to fit the viewport.
 
 Open any deck and hit **Export PDF** (or just Cmd/Ctrl+P) to save it. The
