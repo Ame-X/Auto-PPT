@@ -35,7 +35,7 @@ library). Four shapes plus a legacy shim:
 | URL | What renders |
 |---|---|
 | `/` | Landing page — a card per hosted PPT (skips empty decks). |
-| `/{ppt}` | That PPT's full deck, each slide scaled to fit. |
+| `/{ppt}` | That PPT's full deck, each slide scaled to fit. On localhost, slugs that exist as `.tsx` but are not in `deck` are listed below the deck (`print:hidden`). |
 | `/{ppt}?print` | Every slide at native size; opens the print dialog → Save as PDF. See [Exporting to PDF](#exporting-to-pdf). |
 | `/{ppt}/{slide}` | One slide, native 1920×1080, no chrome. **Headless-capture route.** |
 | `/?slide=<slug>` | Legacy shim — resolves against the sole PPT, else `openalice`. Will be removed once external screenshot tools are repointed to `/{ppt}/{slide}`. |
@@ -172,7 +172,11 @@ export const deck: string[] = [
   degraded fallback. (Don't generate cover images just to fill the field.)
 - Commenting out a `deck` line **hides** that slide. The file stays in
   the folder as a backup/reference. Hidden slides still appear in
-  `pnpm ppt text` under `─── Hidden slides ───` for that PPT.
+  `pnpm ppt text` under `─── Hidden slides ───` for that PPT. On localhost
+  / 127.0.0.1, `/{ppt}` also lists those slugs (`slides/{ppt}/{slug}.tsx`
+  plus a reminder to add them to the `deck` array in `deck.config.ts`) so
+  a `ppt new` file is not gone from the authoring view. Published hosts
+  stay `deck`-only — never auto-append slugs.
 - A PPT with an empty (all-commented) `deck` is **omitted from the
   landing page**.
 - **Never delete a slide file to hide it.** Users keep backup pages

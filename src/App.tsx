@@ -66,10 +66,15 @@ for (const [filePath, mod] of Object.entries(slideModules)) {
 const DEFAULT_PPT = 'openalice';
 
 // Authoring is localhost (or loopback). A published /{ppt} stays chrome-less
-// so a shared deck URL does not leak the owner's landing dashboard.
+// so a shared deck URL does not leak the owner's landing, or unpublished
+// .tsx files.
 function isAuthoringOrigin(): boolean {
   const { hostname } = window.location;
-  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '[::1]'
+  );
 }
 
 function ScaledStage({ children }: { children: ReactNode }) {
@@ -371,10 +376,12 @@ function Deck({ ppt }: { ppt: string }) {
     );
   }
 
-  // Shared /{ppt} stays chrome-less: landing is the owner's dashboard
-  // and must not leak from a published URL. On localhost (authoring),
-  // a quiet back-link lets first-eye authors return without editing
-  // the URL. print:hidden keeps it out of PDF export.
+  // Shared /{ppt} stays chrome-less. On localhost: back-link + hidden
+  // slugs (ppt new files not in deck). print:hidden keeps both out of PDF.
+  const unpublished = [...entry.bySlug.keys()]
+    .filter((slug) => !entry.deck.includes(slug))
+    .sort();
+
   return (
     <div className="min-h-screen bg-slate-900 py-12 px-12">
       {isAuthoringOrigin() && (
@@ -414,6 +421,26 @@ function Deck({ ppt }: { ppt: string }) {
             </ScaledStage>
           );
         })}
+        {isAuthoringOrigin() && unpublished.length > 0 && (
+          <aside className="print:hidden rounded-lg border border-white/10 bg-slate-800/70 p-6 text-slate-300">
+            <div className="mb-3 text-sm font-medium text-slate-100">
+              Hidden slides (file exists, not in deck)
+            </div>
+            <ul className="flex flex-col gap-4 font-mono text-sm">
+              {unpublished.map((slug) => (
+                <li key={slug}>
+                  <div>
+                    slides/{ppt}/{slug}.tsx
+                  </div>
+                  <div className="mt-1 text-slate-400">
+                    Add the slug to the <code>deck</code> array in{' '}
+                    <code>deck.config.ts</code>.
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </aside>
+        )}
       </div>
     </div>
   );
