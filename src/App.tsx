@@ -65,6 +65,13 @@ for (const [filePath, mod] of Object.entries(slideModules)) {
 // Used to resolve the legacy `?slide=` shim when more than one PPT exists.
 const DEFAULT_PPT = 'openalice';
 
+// Authoring is localhost (or loopback). A published /{ppt} stays chrome-less
+// so a shared deck URL does not leak the owner's landing dashboard.
+function isAuthoringOrigin(): boolean {
+  const { hostname } = window.location;
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+}
+
 function ScaledStage({ children }: { children: ReactNode }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(0);
@@ -364,11 +371,20 @@ function Deck({ ppt }: { ppt: string }) {
     );
   }
 
-  // No chrome: a shared /{ppt} is a pure deck. The landing page at "/" is
-  // the owner's private dashboard and is reached directly, not linked from
-  // here.
+  // Shared /{ppt} stays chrome-less: landing is the owner's dashboard
+  // and must not leak from a published URL. On localhost (authoring),
+  // a quiet back-link lets first-eye authors return without editing
+  // the URL. print:hidden keeps it out of PDF export.
   return (
     <div className="min-h-screen bg-slate-900 py-12 px-12">
+      {isAuthoringOrigin() && (
+        <a
+          href="/"
+          className="fixed top-6 left-6 z-10 text-sm text-slate-400 transition hover:text-slate-100 print:hidden"
+        >
+          ← All decks
+        </a>
+      )}
       {/* Export affordance. A deck is a webpage, so "save as PDF" is just
           the browser's print dialog — no tooling, vector text, selectable.
           print:hidden keeps the button itself out of the exported PDF. */}
