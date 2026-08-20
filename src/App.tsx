@@ -106,29 +106,89 @@ function ScaledStage({ children }: { children: ReactNode }) {
   );
 }
 
-// One slide, native 1920×1080, no chrome, no scaling. This DOM is the
-// headless-capture contract: a screenshot tool waits on
-// [data-shot-ready="true"]. Do not wrap it or change its classes.
+// Full-window contain-fit for the single-slide route. Same idea as
+// ScaledStage (ResizeObserver + transform), but `min(vw/1920, vh/1080)`
+// so a short laptop window letterboxes instead of cropping. Seed scale
+// from the window — starting at 0 would give capture tools a 0×0 box.
+function fitWindowScale(width: number, height: number): number {
+  if (width <= 0 || height <= 0) return 1;
+  return Math.min(width / 1920, height / 1080);
+}
+
+function FitStage({ children }: { children: ReactNode }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [scale, setScale] = useState(() =>
+    fitWindowScale(
+      typeof window === 'undefined' ? 1920 : window.innerWidth,
+      typeof window === 'undefined' ? 1080 : window.innerHeight,
+    ),
+  );
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () =>
+      setScale(fitWindowScale(el.clientWidth, el.clientHeight));
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="fixed inset-0 overflow-hidden flex items-center justify-center bg-slate-900"
+    >
+      <div
+        className="relative overflow-hidden"
+        style={{ width: 1920 * scale, height: 1080 * scale }}
+      >
+        <div
+          className="absolute top-0 left-0"
+          style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// One slide. The inner node is the headless-capture contract: native
+// 1920×1080, `data-shot-ready="true"`, those exact classes. Do not change
+// that node's size or strip the attribute. FitStage scales it to the
+// window (letterbox OK) so a laptop sees the full slide. No Export PDF
+// chrome — this route stays clean.
 function SingleSlide({ ppt, slug }: { ppt: string; slug: string }) {
   const mod = byPpt.get(ppt)?.bySlug.get(slug);
   if (!mod) {
     return (
-      <div
-        data-shot-error="missing"
-        className="w-[1920px] h-[1080px] flex items-center justify-center bg-red-950 text-red-200 font-mono text-4xl"
-      >
-        Missing slide: slides/{ppt}/{slug}.tsx
-      </div>
+      <FitStage>
+        <div
+          data-shot-error="missing"
+          className="w-[1920px] h-[1080px] flex flex-col items-center justify-center gap-8 bg-red-950 text-red-200"
+        >
+          <div className="font-mono text-4xl">
+            Missing slide: slides/{ppt}/{slug}.tsx
+          </div>
+          <a href="/" className="text-sky-400 hover:underline text-2xl">
+            ← All decks
+          </a>
+        </div>
+      </FitStage>
     );
   }
   const SlideComponent = mod.default;
   return (
-    <div
-      data-shot-ready="true"
-      className="w-[1920px] h-[1080px] overflow-hidden bg-white"
-    >
-      <SlideComponent />
-    </div>
+    <FitStage>
+      <div
+        data-shot-ready="true"
+        className="w-[1920px] h-[1080px] overflow-hidden bg-white"
+      >
+        <SlideComponent />
+      </div>
+    </FitStage>
   );
 }
 
