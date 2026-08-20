@@ -177,21 +177,28 @@ function titleCase(slug: string): string {
 }
 
 function slideTemplate(slug: string, titleContent?: string): string {
+  const title = titleContent ?? titleCase(slug);
   return `import type { Annotated } from '@/lib/ppt';
-import { SlideFrame, Title } from '@/lib/slide-kit';
+import { SlideFrame, Title, Body } from '@/lib/slide-kit';
 
 export const text = {
   title: {
-    content: ${JSON.stringify(titleContent ?? titleCase(slug))},
-    summary: 'TODO: 一句话说明这页是干嘛的',
-    rationale: 'TODO: 记录用户为什么要这页、你为什么这么写',
+    content: ${JSON.stringify(title)},
+    summary: 'Starter title for this page.',
+    rationale: 'TODO: ask user — why this page exists and what it should argue.',
+  },
+  body: {
+    content: 'Each slide is a .tsx file. Replace this sentence with the idea of the page.',
+    summary: 'Starter sentence so the first look is a finished page, not a stub.',
+    rationale: 'TODO: ask user — what this page should say.',
   },
 } satisfies Record<string, Annotated>;
 
 export default function Slide() {
   return (
-    <SlideFrame className="flex flex-col items-center justify-center p-32">
+    <SlideFrame className="flex flex-col items-center justify-center gap-12 p-32">
       <Title>{text.title.content}</Title>
+      <Body className="text-slate-500">{text.body.content}</Body>
     </SlideFrame>
   );
 }
@@ -205,7 +212,7 @@ import type { DeckMeta } from '@/lib/ppt';
 
 export const meta = {
   title: ${JSON.stringify(title)},
-  description: 'TODO: 一句话说明这份 PPT 是干嘛的',
+  description: ${JSON.stringify(`A starter deck for ${title}.`)},
   // Optional. '' renders the first slide as the landing thumbnail (no
   // tools needed). Got a screenshot tool? Capture /assets/<name>.png and
   // point cover at it. No tool? Leave it.
@@ -331,7 +338,7 @@ function cmdNew(ppt: string | undefined, slug: string | undefined): void {
   fs.writeFileSync(file, slideTemplate(slug));
   console.log(`Created slides/${ppt}/${slug}.tsx`);
   console.log(
-    `(Not added to deck. Edit slides/${ppt}/deck.config.ts to include "${slug}".)`,
+    `(Not added to the deck on purpose — add "${slug}" to the deck array in slides/${ppt}/deck.config.ts.)`,
   );
 }
 

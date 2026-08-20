@@ -35,9 +35,9 @@ library). Four shapes plus a legacy shim:
 | URL | What renders |
 |---|---|
 | `/` | Landing page — a card per hosted PPT (skips empty decks). |
-| `/{ppt}` | That PPT's full deck, each slide scaled to fit. |
+| `/{ppt}` | That PPT's full deck, each slide scaled to fit. On localhost, slugs that exist as `.tsx` but are not in `deck` are listed below the deck (`print:hidden`). |
 | `/{ppt}?print` | Every slide at native size; opens the print dialog → Save as PDF. See [Exporting to PDF](#exporting-to-pdf). |
-| `/{ppt}/{slide}` | One slide, native 1920×1080, no chrome. **Headless-capture route.** |
+| `/{ppt}/{slide}` | One slide. Inner canvas stays 1920×1080 with `data-shot-ready` for capture; the page scales that canvas to fit the window (letterbox OK). No Export PDF chrome. **Headless-capture route.** |
 | `/?slide=<slug>` | Legacy shim — resolves against the sole PPT, else `openalice`. Will be removed once external screenshot tools are repointed to `/{ppt}/{slide}`. |
 
 ## Exporting to PDF
@@ -69,7 +69,9 @@ For each user request:
 3. **Edit.** Use Write/Edit on `slides/{ppt}/*.tsx` and
    `slides/{ppt}/deck.config.ts`. For a new slide,
    `pnpm ppt new <ppt> <kebab-title>` scaffolds the file but does **not**
-   add it to the deck — that is a separate explicit edit. For a whole
+   add it to the deck — **intentional safety** so a scaffold never
+   silently mutates deck order. Follow up by adding the new slug string
+   to the `deck` array in `slides/{ppt}/deck.config.ts`. For a whole
    new PPT, `pnpm ppt new-deck <ppt> [Title]`.
 4. **Verify.** `pnpm ppt text [ppt]` again for content changes. For
    layout changes, also open the slide in a browser (see
@@ -87,10 +89,18 @@ http://localhost:5273/{ppt}/{slug}
 
 The dev server defaults to port **5273** and walks up (5274, 5275, …)
 if that port is busy, so don't hardcode it — read the actual URL that
-`pnpm dev` prints. This renders one slide at native 1920×1080 with no
-chrome, no scaling, on a white background. The element has `data-shot-ready="true"`
-once mounted, which a browser-driving tool can wait on. A missing ppt or
-slug renders a `data-shot-error="missing"` box instead.
+`pnpm dev` prints. Prefer `http://localhost:5273/...` over
+`http://127.0.0.1:5273/...` — Vite may bind only IPv6 `::1`, so
+requests to `127.0.0.1` can fail. The capture node is a native
+1920×1080 white canvas with `data-shot-ready="true"` once mounted —
+screenshot tools that wait on that selector still get a 1920×1080 box.
+Do not change that node's size or strip the attribute. On a smaller
+(laptop) window the same node is scaled to fit (`min(vw/1920, vh/1080)`,
+letterbox OK) so the full slide is visible. No Export PDF chrome on this
+route.
+
+A missing ppt or slug renders a `data-shot-error="missing"` box (also
+fitted to the window) with a small `← All decks` link back to `/`.
 
 If you have a browser tool available — Playwright MCP, a built-in
 browser/screenshot capability, a `chrome-devtools` MCP, whatever your
@@ -167,7 +177,11 @@ export const deck: string[] = [
   degraded fallback. (Don't generate cover images just to fill the field.)
 - Commenting out a `deck` line **hides** that slide. The file stays in
   the folder as a backup/reference. Hidden slides still appear in
-  `pnpm ppt text` under `─── Hidden slides ───` for that PPT.
+  `pnpm ppt text` under `─── Hidden slides ───` for that PPT. On localhost
+  / 127.0.0.1, `/{ppt}` also lists those slugs (`slides/{ppt}/{slug}.tsx`
+  plus a reminder to add them to the `deck` array in `deck.config.ts`) so
+  a `ppt new` file is not gone from the authoring view. Published hosts
+  stay `deck`-only — never auto-append slugs.
 - A PPT with an empty (all-commented) `deck` is **omitted from the
   landing page**.
 - **Never delete a slide file to hide it.** Users keep backup pages
@@ -213,9 +227,10 @@ from now has a real answer. Corrupting it defeats the entire Harness.
 - When the primitives are not enough, drop into raw tailwind directly.
   See `slides/samples/a-two-column-example.tsx` for the mixed style —
   that's normal, not a smell.
-- Viewport scaling is handled by `App.tsx`'s `ScaledStage`. You do not
-  need to think about responsive design inside slides — your canvas is
-  always 1920×1080.
+- Viewport scaling is handled in `App.tsx`: `ScaledStage` (width-fit)
+  on deck cards, `FitStage` (contain-fit the window) on `/{ppt}/{slug}`.
+  You do not need to think about responsive design inside slides — your
+  canvas is always 1920×1080.
 
 ### Images via `Asset` (placeholder pattern)
 
@@ -260,11 +275,15 @@ Conventions:
 |---|---|
 | `pnpm ppt text [ppt]` | Dump slides with `content` / `summary` / `rationale`. No arg = every PPT grouped; with a `ppt` = just that one. **Main read-state command.** |
 | `pnpm ppt list [ppt]` | Show deck order + hidden slides (slugs only). No arg = every PPT; with a `ppt` = just that one. |
-| `pnpm ppt new <ppt> <kebab-title>` | Scaffold a new slide file in `slides/{ppt}/`. The PPT must already exist (have a `deck.config.ts`). Does **not** add to the deck. |
+| `pnpm ppt new <ppt> <kebab-title>` | Scaffold a new slide file in `slides/{ppt}/`. The PPT must already exist (have a `deck.config.ts`). Does **not** add to the deck — intentional; then add the slug to the `deck` array in `slides/{ppt}/deck.config.ts`. |
 | `pnpm ppt new-deck <ppt> [Title]` | Scaffold a whole new PPT: a folder with `deck.config.ts` + a starter `cover.tsx`. Renders immediately at `/{ppt}`. |
 | `pnpm dev` | Start Vite dev server. Landing at `/`; a deck at `/{ppt}`; a single slide at `/{ppt}/{slug}` for headless capture. |
 | `pnpm build` | Production build (`tsc -b && vite build`). |
 | `pnpm preview` | Serve the production build locally (verifies SPA fallback for deep links). |
+
+If `pnpm` is unavailable, `bun install`, `bun run <script>`, and
+`bun run ppt …` are fine equivalents. `pnpm` remains the documented
+default.
 
 ## Hosting
 
